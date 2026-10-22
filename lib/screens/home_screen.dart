@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/languages.dart';
+import '../models/progress.dart';
 import '../models/question.dart';
 import '../services/app_state.dart';
 import '../services/auth_service.dart';
+import '../services/progress_service.dart';
+import 'login_screen.dart';
 import 'quiz_screen.dart';
+import 'rewards_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -22,6 +26,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final progress = context.watch<ProgressService>();
     final auth = context.read<AuthService>();
 
     return Scaffold(
@@ -44,7 +49,7 @@ class HomeScreen extends StatelessWidget {
             tooltip: 'Refresh questions',
             onPressed: () => context.read<AppState>().loadData(),
           ),
-          if (auth.firebaseReady)
+          if (auth.firebaseReady && auth.currentUser != null)
             IconButton(
               icon: const Icon(Icons.logout),
               tooltip: 'Log out',
@@ -57,6 +62,8 @@ class HomeScreen extends StatelessWidget {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                _progressHeader(context, progress, auth),
+                const SizedBox(height: 12),
                 Text(
                   'Namaste! Choose a subject',
                   style: Theme.of(context).textTheme.titleMedium,
@@ -88,6 +95,61 @@ class HomeScreen extends StatelessWidget {
                   ),
               ],
             ),
+    );
+  }
+
+  Widget _progressHeader(
+    BuildContext context,
+    ProgressService progress,
+    AuthService auth,
+  ) {
+    final p = progress.progress;
+
+    if (progress.saved) {
+      return Card(
+        child: ListTile(
+          leading: const Icon(Icons.military_tech, color: Colors.amber, size: 32),
+          title: Text('Level ${p.level} \u2022 ${p.points} points'),
+          subtitle: Text('${p.streak} day streak \u2022 '
+              'today ${p.dailyCount}/${Progress.dailyGoal}'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const RewardsScreen()),
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Create an account to save your progress',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Your points, badges and streak stay safe, and you can continue '
+              'on any phone.',
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                FilledButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  ),
+                  child: const Text('Log in / Sign up'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -129,6 +191,7 @@ class HomeScreen extends StatelessWidget {
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => QuizScreen(
+                            subjectId: subject.id,
                             title: '${subject.title} \u2022 ${g.titleIn(state.lang)}',
                             questions: g.questions,
                           ),

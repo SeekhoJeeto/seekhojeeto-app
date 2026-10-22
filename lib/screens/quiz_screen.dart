@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../models/question.dart';
 import '../services/app_state.dart';
+import '../services/progress_service.dart';
 
 class QuizScreen extends StatefulWidget {
   final String title;
+  final String subjectId;
   final List<Question> questions;
   final int limit;
 
@@ -13,6 +15,7 @@ class QuizScreen extends StatefulWidget {
     super.key,
     required this.title,
     required this.questions,
+    this.subjectId = '',
     this.limit = 10,
   });
 
@@ -26,6 +29,7 @@ class _QuizScreenState extends State<QuizScreen> {
   int _score = 0;
   int? _selected;
   bool _finished = false;
+  bool _recorded = false;
 
   @override
   void initState() {
@@ -45,6 +49,14 @@ class _QuizScreenState extends State<QuizScreen> {
   void _next() {
     if (_index + 1 >= _questions.length) {
       setState(() => _finished = true);
+      if (!_recorded) {
+        _recorded = true;
+        context.read<ProgressService>().recordQuiz(
+              subjectId: widget.subjectId,
+              correct: _score,
+              total: _questions.length,
+            );
+      }
     } else {
       setState(() {
         _index++;
@@ -61,8 +73,11 @@ class _QuizScreenState extends State<QuizScreen> {
       _score = 0;
       _selected = null;
       _finished = false;
+      _recorded = false;
     });
   }
+
+  int get _pointsEarned => _score * 10 + (_score == _questions.length ? 5 : 0);
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +105,15 @@ class _QuizScreenState extends State<QuizScreen> {
                 Text(
                   'Your score: $_score / ${_questions.length}',
                   style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '+$_pointsEarned points',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton.icon(
@@ -127,9 +151,7 @@ class _QuizScreenState extends State<QuizScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          LinearProgressIndicator(
-            value: (_index + 1) / _questions.length,
-          ),
+          LinearProgressIndicator(value: (_index + 1) / _questions.length),
           const SizedBox(height: 8),
           Text(
             'Question ${_index + 1} of ${_questions.length}',
@@ -162,9 +184,7 @@ class _QuizScreenState extends State<QuizScreen> {
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _next,
-              child: Text(
-                _index + 1 >= _questions.length ? 'Finish' : 'Next',
-              ),
+              child: Text(_index + 1 >= _questions.length ? 'Finish' : 'Next'),
             ),
           ],
         ],

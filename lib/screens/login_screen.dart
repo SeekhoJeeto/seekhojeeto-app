@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
-import 'home_screen.dart';
 
+/// Login / sign-up. Pushed from the home screen, so it pops back on success.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -43,18 +43,16 @@ class _LoginScreenState extends State<LoginScreen> {
       _busy = false;
       _message = err;
     });
-  }
-
-  void _guest() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
+    if (err == null && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.read<AuthService>();
     return Scaffold(
+      appBar: AppBar(title: const Text('Account')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -62,13 +60,18 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const Icon(Icons.school, size: 56, color: Colors.green),
+                const SizedBox(height: 12),
                 const Text(
-                  'Seekho Jeeto',
-                  style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
+                  'Save your progress',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
-                const Text('Learn. Play. Win.'),
-                const SizedBox(height: 32),
+                const Text(
+                  'Log in so your points, badges and streak are kept safe.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
                 if (!auth.firebaseReady)
                   Card(
                     child: Padding(
@@ -136,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
                 TextButton(
-                  onPressed: _guest,
+                  onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Continue as guest'),
                 ),
               ],

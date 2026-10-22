@@ -18,9 +18,27 @@ when the phone is offline.
 | A brand new subject added to `questions.json` | **No** — the app lists whatever subjects the file contains |
 | App code / UI / new features | Yes — rebuild, and it installs over the old one |
 
-Because the app reads the JSON itself, the day-to-day "add questions / add a
-subject" work needs **no APK at all**. The APK is only rebuilt when the app
-itself changes.
+## Rewards and saved progress
+
+- **Points**: +10 for every correct answer, +5 bonus for a perfect quiz.
+- **Levels**: every 100 points is a level.
+- **Streak**: counts the days played in a row.
+- **Daily goal**: answer 20 questions a day.
+- **Badges**: First Steps, Perfect 10, Century, On a Roll (3-day streak),
+  Week Warrior (7-day streak), Explorer (all three subjects), Goal Getter.
+
+Progress is saved **only for students who log in**, in their own private
+document in Cloud Firestore (`users/{uid}`). A guest can play, but their
+progress lasts only for that session — the app nudges them to create an
+account.
+
+### Privacy
+
+`firestore.rules` lets a signed-in student read and write **only their own**
+document, and denies everything else. Because this is enforced on the server,
+nobody can see another student's data even if the app is modified. There is no
+leaderboard — each student sees only their own points and badges. (A shared
+leaderboard could be added later as an opt-in feature.)
 
 ## How the pieces fit
 
@@ -29,15 +47,16 @@ itself changes.
 | `SeekhoJeeto/seekhojeeto.github.io` | Source of truth for `questions.json` (updated daily) |
 | This repo | Flutter app source + build automation |
 | GitHub Actions | Builds the **release-signed** APK as a downloadable artifact |
-| Firebase Auth | Login / account creation (optional) |
+| Firebase Auth | Student login / account creation |
+| Cloud Firestore | Stores each student's own progress privately |
 
 ## Building the APK
 
 GitHub Actions does the build — no Android Studio needed locally.
 
 1. Push to `main`, or open **Actions → Build APK → Run workflow**.
-2. When the run finishes, open it and download the **seekhojeeto-apk** artifact.
-3. Install `app-release.apk` on the phone.
+2. When the run finishes, download the **seekhojeeto-apk** artifact.
+3. Install `app-release.apk`. Each new build installs over the previous one.
 
 The app id is `com.seekhojeeto.app`.
 
@@ -45,30 +64,27 @@ The app id is `com.seekhojeeto.app`.
 
 The build is signed with a real release keystore, so **each new APK installs
 straight over the previous one** — no uninstalling. Every build also gets a
-fresh, increasing `versionCode` (taken from the workflow run number).
+fresh, increasing `versionCode` (from the workflow run number).
 
-The keystore and its passwords are stored as repository **Actions secrets**:
+Keystore and passwords are stored as repository **Actions secrets**:
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+`ANDROID_KEY_PASSWORD`. Keep a personal backup of the keystore — if it is lost
+you can no longer update the app under the same identity.
 
-- `ANDROID_KEYSTORE_BASE64`
-- `ANDROID_KEYSTORE_PASSWORD`
-- `ANDROID_KEY_ALIAS`
-- `ANDROID_KEY_PASSWORD`
+## Enabling accounts and progress (Firebase)
 
-Keep a personal backup of the keystore file and its password. If the keystore
-is ever lost you can no longer update the app on Play Store with the same
-identity; if it leaks, someone else could sign as you. To rotate it, generate a
-new keystore, replace the secrets, and re-run the build.
-
-## Enabling login (Firebase Auth)
-
-The app runs fine without Firebase (guest mode). To turn on accounts:
+The app runs without Firebase (guest mode). To turn on accounts **and saved
+progress**:
 
 1. Create a project at <https://console.firebase.google.com>.
 2. Add an **Android app** with package name `com.seekhojeeto.app`.
-3. In **Authentication → Sign-in method**, enable **Email/Password**.
-4. Download `google-services.json`, base64-encode it, and add it as the secret
+3. **Authentication → Sign-in method**: enable **Email/Password**.
+4. **Firestore Database → Create database** (start in production mode).
+5. Open the **Rules** tab, paste the contents of `firestore.rules`, and
+   publish. This is what keeps every student's data private.
+6. Download `google-services.json`, base64-encode it, and add it as the secret
    `GOOGLE_SERVICES_JSON_B64`.
-5. Re-run the **Build APK** workflow.
+7. Re-run the **Build APK** workflow.
 
 ## Adding questions or a new subject
 
@@ -76,8 +92,8 @@ Nothing to change in this repo.
 
 - **Questions**: the daily job appends them to `questions.json`; the app picks
   them up on next launch.
-- **New subject**: add a new top-level key to `questions.json`. The app shows
-  any subject it finds. Two shapes are supported:
+- **New subject**: add a new top-level key to `questions.json`. Two shapes are
+  supported:
 
   ```jsonc
   // "classed" (like science / maths)
