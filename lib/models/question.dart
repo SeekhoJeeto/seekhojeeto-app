@@ -37,17 +37,33 @@ class Question {
   List<String> optionsIn(String lang) => options[lang] ?? options['en'] ?? const [];
 }
 
-/// A Values & Religion category (values, sikh, hindu, ...).
-class Tradition {
-  final Map<String, String> names;
+/// One bucket inside a subject: a class (Science/Maths) or a category
+/// (Values & Religion). Both shapes are handled by this single class.
+class SubjectGroup {
+  final String key;
+  final Map<String, String> names; // localised titles; always has 'en'
   final String icon;
   final List<Question> questions;
 
-  Tradition({
+  SubjectGroup({
+    required this.key,
     required this.names,
     required this.icon,
     required this.questions,
   });
 
-  String nameIn(String lang) => names[lang] ?? names['en'] ?? '';
+  String titleIn(String lang) => names[lang] ?? names['en'] ?? key;
+}
+
+/// A top-level section of the question bank (Science, Maths, ...). Built
+/// straight from the JSON so a new subject added to the file shows up in the
+/// app automatically.
+class Subject {
+  final String id;
+  final String title;
+  final List<SubjectGroup> groups;
+
+  Subject({required this.id, required this.title, required this.groups});
+
+  int get count => groups.fold(0, (sum, g) => sum + g.questions.length);
 }

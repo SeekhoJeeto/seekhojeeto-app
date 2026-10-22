@@ -10,36 +10,54 @@ This app reads that file at launch, so **new questions appear automatically**
 without shipping a new APK. A bundled copy (`assets/questions.json`) is used
 when the phone is offline.
 
+## How updates reach the phone
+
+| What changed | New APK needed? |
+| --- | --- |
+| New questions added to a subject/class | **No** — fetched on next app open |
+| A brand new subject added to `questions.json` | **No** — the app lists whatever subjects the file contains |
+| App code / UI / new features | Yes — rebuild, and it installs over the old one |
+
+Because the app reads the JSON itself, the day-to-day "add questions / add a
+subject" work needs **no APK at all**. The APK is only rebuilt when the app
+itself changes.
+
 ## How the pieces fit
 
 | Piece | Role |
 | --- | --- |
 | `SeekhoJeeto/seekhojeeto.github.io` | Source of truth for `questions.json` (updated daily) |
 | This repo | Flutter app source + build automation |
-| GitHub Actions | Builds the APK and attaches it as a downloadable artifact |
-| Firebase Auth | Login / account creation (optional, see below) |
+| GitHub Actions | Builds the **release-signed** APK as a downloadable artifact |
+| Firebase Auth | Login / account creation (optional) |
 
 ## Building the APK
 
-You do **not** need Android Studio on your own machine — GitHub Actions does
-the build.
+GitHub Actions does the build — no Android Studio needed locally.
 
-1. Push to `main` (or open **Actions → Build APK → Run workflow**).
+1. Push to `main`, or open **Actions → Build APK → Run workflow**.
 2. When the run finishes, open it and download the **seekhojeeto-apk** artifact.
-3. Install `app-release.apk` on an Android phone.
+3. Install `app-release.apk` on the phone.
 
 The app id is `com.seekhojeeto.app`.
 
-### Building locally (optional)
+## Release signing
 
-```bash
-flutter create --org com.seekhojeeto --project-name seekhojeeto --platforms=android .
-flutter pub get
-flutter build apk --release
-```
+The build is signed with a real release keystore, so **each new APK installs
+straight over the previous one** — no uninstalling. Every build also gets a
+fresh, increasing `versionCode` (taken from the workflow run number).
 
-If `flutter pub get` complains about versions, run
-`flutter pub upgrade --major-versions` and try again.
+The keystore and its passwords are stored as repository **Actions secrets**:
+
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Keep a personal backup of the keystore file and its password. If the keystore
+is ever lost you can no longer update the app on Play Store with the same
+identity; if it leaks, someone else could sign as you. To rotate it, generate a
+new keystore, replace the secrets, and re-run the build.
 
 ## Enabling login (Firebase Auth)
 
@@ -48,23 +66,25 @@ The app runs fine without Firebase (guest mode). To turn on accounts:
 1. Create a project at <https://console.firebase.google.com>.
 2. Add an **Android app** with package name `com.seekhojeeto.app`.
 3. In **Authentication → Sign-in method**, enable **Email/Password**.
-4. Download `google-services.json`.
-5. In this GitHub repo, open **Settings → Secrets and variables → Actions**,
-   add a secret named `GOOGLE_SERVICES_JSON_B64` whose value is your
-   `google-services.json` encoded as Base64:
+4. Download `google-services.json`, base64-encode it, and add it as the secret
+   `GOOGLE_SERVICES_JSON_B64`.
+5. Re-run the **Build APK** workflow.
 
-   ```bash
-   base64 -w0 google-services.json      # macOS: base64 -i google-services.json
-   ```
+## Adding questions or a new subject
 
-6. Re-run the **Build APK** workflow. The build now includes Firebase and the
-   login screen becomes active.
+Nothing to change in this repo.
 
-> Note: `google-services.json` contains a client API key. It ends up inside the
-> app either way, but keep it in the secret store rather than committing it.
+- **Questions**: the daily job appends them to `questions.json`; the app picks
+  them up on next launch.
+- **New subject**: add a new top-level key to `questions.json`. The app shows
+  any subject it finds. Two shapes are supported:
 
-## Adding more questions
+  ```jsonc
+  // "classed" (like science / maths)
+  "english": { "5": [ /* questions */ ], "6": [ /* questions */ ] }
 
-Nothing to change here. The daily job appends new questions to
-`questions.json` in the content repo; the app fetches the latest file on each
-launch. Just rebuild if you also want the offline bundled copy refreshed.
+  // "grouped" (like traditions) - each entry has name/icon/qs
+  "gk": {
+    "world": { "name": {"en": "World"}, "icon": "\ud83c\udf0d", "qs": [ /* questions */ ] }
+  }
+  ```

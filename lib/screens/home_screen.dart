@@ -10,6 +10,15 @@ import 'quiz_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
+  static const List<Color> _colors = [
+    Colors.blue,
+    Colors.orange,
+    Colors.green,
+    Colors.purple,
+    Colors.teal,
+    Colors.redAccent,
+  ];
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -53,30 +62,12 @@ class HomeScreen extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
-                _subjectCard(
-                  context,
-                  title: 'Science',
-                  subtitle: 'Classes 5 to 12',
-                  icon: Icons.science,
-                  color: Colors.blue,
-                  onTap: () => _openClasses(context, 'Science', state.science),
-                ),
-                _subjectCard(
-                  context,
-                  title: 'Maths',
-                  subtitle: 'Classes 5 to 12',
-                  icon: Icons.calculate,
-                  color: Colors.orange,
-                  onTap: () => _openClasses(context, 'Maths', state.maths),
-                ),
-                _subjectCard(
-                  context,
-                  title: 'Values & Religion',
-                  subtitle: 'Values, Sikh, Hindu, Muslim, Christian, Jain, Buddhist',
-                  icon: Icons.spa,
-                  color: Colors.green,
-                  onTap: () => _openTraditions(context, state),
-                ),
+                for (var i = 0; i < state.subjects.length; i++)
+                  _subjectCard(
+                    context,
+                    state.subjects[i],
+                    _colors[i % _colors.length],
+                  ),
                 const SizedBox(height: 16),
                 Center(
                   child: Text(
@@ -100,105 +91,71 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _subjectCard(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
+  Widget _subjectCard(BuildContext context, Subject subject, Color color) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: color.withAlpha(38),
-          child: Icon(icon, color: color),
+          child: Icon(_iconFor(subject.id), color: color),
         ),
         title: Text(
-          title,
+          subject.title,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        subtitle: Text(subtitle),
+        subtitle: Text('${subject.groups.length} sections \u2022 ${subject.count} questions'),
         trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
+        onTap: () => _openGroups(context, subject),
       ),
     );
   }
 
-  void _openClasses(
-    BuildContext context,
-    String title,
-    Map<String, List<Question>> data,
-  ) {
-    final classes = data.keys.toList()
-      ..sort((a, b) {
-        final ai = int.tryParse(a) ?? 0;
-        final bi = int.tryParse(b) ?? 0;
-        return ai.compareTo(bi);
-      });
-
+  void _openGroups(BuildContext context, Subject subject) {
+    final state = context.read<AppState>();
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => Scaffold(
-          appBar: AppBar(title: Text(title)),
-          body: classes.isEmpty
-              ? const Center(child: Text('No questions yet.'))
-              : ListView(
-                  children: classes
-                      .map((c) => ListTile(
-                            leading: CircleAvatar(child: Text(c)),
-                            title: Text('Class $c'),
-                            subtitle: Text('${data[c]!.length} questions'),
-                            trailing: const Icon(Icons.play_arrow),
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => QuizScreen(
-                                  title: '$title \u2022 Class $c',
-                                  questions: data[c]!,
-                                ),
-                              ),
-                            ),
-                          ))
-                      .toList(),
-                ),
-        ),
-      ),
-    );
-  }
-
-  void _openTraditions(BuildContext context, AppState state) {
-    final cats = state.traditions.keys.toList();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: const Text('Values & Religion')),
-          body: cats.isEmpty
-              ? const Center(child: Text('No questions yet.'))
-              : ListView(
-                  children: cats.map((c) {
-                    final t = state.traditions[c]!;
-                    return ListTile(
+          appBar: AppBar(title: Text(subject.title)),
+          body: ListView(
+            children: subject.groups
+                .map((g) => ListTile(
                       leading: CircleAvatar(
-                        child: Text(t.icon.isEmpty ? '\u2022' : t.icon),
+                        child: Text(g.icon.isEmpty ? '\u2022' : g.icon),
                       ),
-                      title: Text(t.nameIn(state.lang)),
-                      subtitle: Text('${t.questions.length} questions'),
+                      title: Text(g.titleIn(state.lang)),
+                      subtitle: Text('${g.questions.length} questions'),
                       trailing: const Icon(Icons.play_arrow),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => QuizScreen(
-                            title: t.nameIn(state.lang),
-                            questions: t.questions,
+                            title: '${subject.title} \u2022 ${g.titleIn(state.lang)}',
+                            questions: g.questions,
                           ),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
+                    ))
+                .toList(),
+          ),
         ),
       ),
     );
+  }
+
+  IconData _iconFor(String id) {
+    switch (id) {
+      case 'science':
+        return Icons.science;
+      case 'maths':
+        return Icons.calculate;
+      case 'traditions':
+        return Icons.spa;
+      case 'english':
+        return Icons.translate;
+      case 'gk':
+        return Icons.public;
+      default:
+        return Icons.menu_book;
+    }
   }
 }
