@@ -1,0 +1,71 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Scaffold the Android platform
+        run: |
+          flutter create --org com.seekhojeeto --project-name seekhojeeto --platforms=android /tmp/scaffold
+          cp -r /tmp/scaffold/android ./android
+          OLD=com.seekhojeeto.seekhojeeto
+          NEW=com.seekhojeeto.app
+          grep -rl "$OLD" android | xargs -r sed -i "s/$OLD/$NEW/g"
+          mkdir -p android/app/src/main/kotlin/com/seekhojeeto/app
+          mv android/app/src/main/kotlin/com/seekhojeeto/seekhojeeto/MainActivity.kt \
+             android/app/src/main/kotlin/com/seekhojeeto/app/MainActivity.kt 2>/dev/null || true
+          rm -rf android/app/src/main/kotlin/com/seekhojeeto/seekhojeeto
+
+      - name: Fetch the latest questions
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/SeekhoJeeto/seekhojeeto.github.io/main/questions.json \
+            -o assets/questions.json && echo "Fetched the latest question bank." \
+            || echo "Could not fetch; using the bundled fallback."
+
+      - name: Add Firebase config (optional)
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > android/app/google-services.json
+            python3 tool/enable_firebase.py
+            echo "Firebase login enabled for this build."
+          else
+            echo "No Firebase secret set - building without login (guest mode)."
+          fi
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: seekhojeeto-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
