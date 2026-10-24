@@ -8,15 +8,21 @@ import '../services/progress_service.dart';
 class QuizScreen extends StatefulWidget {
   final String title;
   final String subjectId;
+  final String subjectTitle;
   final List<Question> questions;
   final int limit;
+  final List<SubjectGroup> groups;
+  final int groupIndex;
 
   const QuizScreen({
     super.key,
     required this.title,
     required this.questions,
     this.subjectId = '',
+    this.subjectTitle = '',
     this.limit = 10,
+    this.groups = const [],
+    this.groupIndex = 0,
   });
 
   @override
@@ -77,6 +83,26 @@ class _QuizScreenState extends State<QuizScreen> {
     });
   }
 
+  bool get _hasNextClass => widget.groupIndex + 1 < widget.groups.length;
+
+  void _nextClass() {
+    if (!_hasNextClass) return;
+    final g = widget.groups[widget.groupIndex + 1];
+    final lang = context.read<AppState>().lang;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => QuizScreen(
+          subjectId: widget.subjectId,
+          subjectTitle: widget.subjectTitle,
+          title: '${widget.subjectTitle} \u2022 ${g.titleIn(lang)}',
+          questions: g.questions,
+          groups: widget.groups,
+          groupIndex: widget.groupIndex + 1,
+        ),
+      ),
+    );
+  }
+
   int get _pointsEarned => _score * 10 + (_score == _questions.length ? 5 : 0);
 
   @override
@@ -121,6 +147,16 @@ class _QuizScreenState extends State<QuizScreen> {
                   icon: const Icon(Icons.replay),
                   label: const Text('Play again'),
                 ),
+                if (_hasNextClass) ...[
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: _nextClass,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: Text(
+                      'Next: ${widget.groups[widget.groupIndex + 1].titleIn(lang)}',
+                    ),
+                  ),
+                ],
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Back'),

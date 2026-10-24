@@ -175,30 +175,34 @@ class HomeScreen extends StatelessWidget {
 
   void _openGroups(BuildContext context, Subject subject) {
     final state = context.read<AppState>();
+    final groups = subject.groups;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => Scaffold(
           appBar: AppBar(title: Text(subject.title)),
           body: ListView(
-            children: subject.groups
-                .map((g) => ListTile(
-                      leading: CircleAvatar(
-                        child: Text(g.icon.isEmpty ? '\u2022' : g.icon),
+            children: [
+              for (var i = 0; i < groups.length; i++)
+                ListTile(
+                  leading: CircleAvatar(
+                    child: Text(groups[i].icon.isEmpty ? '\u2022' : groups[i].icon),
+                  ),
+                  title: Text(groups[i].titleIn(state.lang)),
+                  trailing: const Icon(Icons.play_arrow),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => QuizScreen(
+                        subjectId: subject.id,
+                        subjectTitle: subject.title,
+                        title: '${subject.title} \u2022 ${groups[i].titleIn(state.lang)}',
+                        questions: groups[i].questions,
+                        groups: groups,
+                        groupIndex: i,
                       ),
-                      title: Text(g.titleIn(state.lang)),
-                      subtitle: Text('${g.questions.length} questions'),
-                      trailing: const Icon(Icons.play_arrow),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => QuizScreen(
-                            subjectId: subject.id,
-                            title: '${subject.title} \u2022 ${g.titleIn(state.lang)}',
-                            questions: g.questions,
-                          ),
-                        ),
-                      ),
-                    ))
-                .toList(),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
