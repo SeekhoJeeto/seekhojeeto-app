@@ -166,7 +166,6 @@ class HomeScreen extends StatelessWidget {
           subject.title,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        subtitle: Text('${subject.groups.length} sections \u2022 ${subject.count} questions'),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => _openGroups(context, subject),
       ),
