@@ -20,6 +20,7 @@ class AppState extends ChangeNotifier {
   static const Map<String, String> _titles = {
     'science': 'Science',
     'maths': 'Maths',
+    'sst': 'SST',
     'traditions': 'Values & Religion',
   };
 
@@ -60,8 +61,13 @@ class AppState extends ChangeNotifier {
       final resp = await http
           .get(Uri.parse(dataUrl))
           .timeout(const Duration(seconds: 15));
-      if (resp.statusCode == 200 && resp.body.trim().isNotEmpty) {
-        body = resp.body;
+      if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+        // raw.githubusercontent.com serves questions.json as
+        // application/octet-stream with no charset, and package:http then
+        // falls back to Latin-1. Decode the raw bytes as UTF-8 ourselves so
+        // Hindi and the other Indian scripts show up correctly.
+        final text = utf8.decode(resp.bodyBytes, allowMalformed: true);
+        if (text.trim().isNotEmpty) body = text;
       }
     } catch (_) {
       // Offline or blocked - fall back to the bundled copy.

@@ -1,7 +1,7 @@
 name: seekhojeeto
-description: "Seekho Jeeto - quiz app for Indian students (Science, Maths, Values & Religion) in 13 languages."
+description: "Seekho Jeeto - quiz app for Indian students (Science, Maths, SST, Values & Religion) in 13 languages."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.3.0 <5.0.0'
