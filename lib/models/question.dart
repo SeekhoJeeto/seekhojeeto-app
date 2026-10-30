@@ -58,12 +58,40 @@ class SubjectGroup {
 /// A top-level section of the question bank (Science, Maths, ...). Built
 /// straight from the JSON so a new subject added to the file shows up in the
 /// app automatically.
+/// One part of a subject that has sub-sections (English is split into
+/// grammar / vocabulary / literature). Each part carries its own class-wise
+/// groups, so the app can show: subject -> part -> class.
+class SubjectPart {
+  final String id;
+  final Map<String, String> names; // localised titles; always has 'en'
+  final List<SubjectGroup> groups;
+
+  SubjectPart({
+    required this.id,
+    required this.names,
+    required this.groups,
+  });
+
+  String titleIn(String lang) => names[lang] ?? names['en'] ?? id;
+}
+
 class Subject {
   final String id;
   final String title;
   final List<SubjectGroup> groups;
+  final List<SubjectPart> parts;
 
-  Subject({required this.id, required this.title, required this.groups});
+  Subject({
+    required this.id,
+    required this.title,
+    required this.groups,
+    this.parts = const [],
+  });
 
-  int get count => groups.fold(0, (sum, g) => sum + g.questions.length);
+  int get count =>
+      groups.fold(0, (sum, g) => sum + g.questions.length) +
+      parts.fold(
+        0,
+        (sum, p) => sum + p.groups.fold(0, (t, g) => t + g.questions.length),
+      );
 }

@@ -103,17 +103,69 @@ class AppState extends ChangeNotifier {
       final groups = _groupsFrom(value);
       if (groups.isEmpty) continue;
 
-      built.add(Subject(
+      built.add(_withParts(Subject(
         id: entry.key,
         title: _titles[entry.key] ?? _prettify(entry.key),
         groups: groups,
-      ));
+      )));
     }
 
     subjects = built;
 
     final meta = d['meta'];
     if (meta is Map) lastUpdated = '${meta['last_updated'] ?? ''}';
+  }
+
+  /// Part names for subjects that are split into sub-sections.
+  static const Map<String, Map<String, String>> _partNames = {
+    'grammar': {'en': 'Grammar', 'hi': '\u0935\u094d\u092f\u093e\u0915\u0930\u0923'},
+    'vocabulary': {'en': 'Vocabulary', 'hi': '\u0936\u092c\u094d\u0926\u093e\u0935\u0932\u0940'},
+    'literature': {'en': 'Literature', 'hi': '\u0938\u093e\u0939\u093f\u0924\u094d\u092f'},
+  };
+
+  /// If every group key looks like "part_class" (e.g. grammar_5) and the part
+  /// is a known one, fold the flat group list into parts. Anything else is
+  /// returned unchanged, so Science/Maths/SST keep working exactly as before.
+  Subject _withParts(Subject subject) {
+    final buckets = <String, List<SubjectGroup>>{};
+    for (final g in subject.groups) {
+      final i = g.key.lastIndexOf('_');
+      if (i <= 0) return subject;
+      final part = g.key.substring(0, i);
+      if (!_partNames.containsKey(part)) return subject;
+      buckets.putIfAbsent(part, () => []).add(g);
+    }
+    if (buckets.isEmpty) return subject;
+
+    final parts = <SubjectPart>[];
+    for (final entry in _partNames.entries) {
+      final list = buckets[entry.key];
+      if (list == null || list.isEmpty) continue;
+      final renamed = <SubjectGroup>[];
+      for (final g in list) {
+        final cls = g.key.substring(g.key.lastIndexOf('_') + 1);
+        renamed.add(SubjectGroup(
+          key: g.key,
+          names: {'en': 'Class $cls', 'hi': '\u0915\u0915\u094d\u0937\u093e $cls'},
+          icon: g.icon,
+          questions: g.questions,
+        ));
+      }
+      renamed.sort((a, b) {
+        final ai = int.tryParse(a.key.substring(a.key.lastIndexOf('_') + 1)) ?? 0;
+        final bi = int.tryParse(b.key.substring(b.key.lastIndexOf('_') + 1)) ?? 0;
+        return ai.compareTo(bi);
+      });
+      parts.add(SubjectPart(id: entry.key, names: entry.value, groups: renamed));
+    }
+    if (parts.isEmpty) return subject;
+
+    return Subject(
+      id: subject.id,
+      title: subject.title,
+      groups: const [],
+      parts: parts,
+    );
   }
 
   /// Handles both JSON shapes:

@@ -173,12 +173,59 @@ class HomeScreen extends StatelessWidget {
   }
 
   void _openGroups(BuildContext context, Subject subject) {
+    if (subject.parts.isNotEmpty) {
+      _openParts(context, subject);
+      return;
+    }
+    _openGroupList(context, subject.id, subject.title, subject.groups);
+  }
+
+  void _openParts(BuildContext context, Subject subject) {
     final state = context.read<AppState>();
-    final groups = subject.groups;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => Scaffold(
           appBar: AppBar(title: Text(subject.title)),
+          body: ListView(
+            children: [
+              for (final part in subject.parts)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor:
+                        Theme.of(context).colorScheme.primary.withAlpha(30),
+                    child: Icon(_iconForPart(part.id)),
+                  ),
+                  title: Text(
+                    part.titleIn(state.lang),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text('${part.groups.length} classes'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _openGroupList(
+                    context,
+                    subject.id,
+                    '${subject.title} \u2022 ${part.titleIn(state.lang)}',
+                    part.groups,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openGroupList(
+    BuildContext context,
+    String subjectId,
+    String subjectTitle,
+    List<SubjectGroup> groups,
+  ) {
+    final state = context.read<AppState>();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(subjectTitle)),
           body: ListView(
             children: [
               for (var i = 0; i < groups.length; i++)
@@ -191,9 +238,9 @@ class HomeScreen extends StatelessWidget {
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => QuizScreen(
-                        subjectId: subject.id,
-                        subjectTitle: subject.title,
-                        title: '${subject.title} \u2022 ${groups[i].titleIn(state.lang)}',
+                        subjectId: subjectId,
+                        subjectTitle: subjectTitle,
+                        title: '$subjectTitle \u2022 ${groups[i].titleIn(state.lang)}',
                         questions: groups[i].questions,
                         groups: groups,
                         groupIndex: i,
@@ -206,6 +253,19 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  IconData _iconForPart(String id) {
+    switch (id) {
+      case 'grammar':
+        return Icons.spellcheck;
+      case 'vocabulary':
+        return Icons.menu_book;
+      case 'literature':
+        return Icons.auto_stories;
+      default:
+        return Icons.article;
+    }
   }
 
   IconData _iconFor(String id) {
