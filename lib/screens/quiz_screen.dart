@@ -30,7 +30,9 @@ class QuizScreen extends StatefulWidget {
 }
 
 class _QuizScreenState extends State<QuizScreen> {
-  late List<Question> _questions;
+  late List<Question> _pool;   // all questions, shuffled once
+  late List<Question> _questions; // the current set of up to `limit`
+  int _cursor = 0;             // how far into the pool we have reached
   int _index = 0;
   int _score = 0;
   int? _selected;
@@ -40,8 +42,29 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void initState() {
     super.initState();
-    final list = List<Question>.from(widget.questions)..shuffle();
-    _questions = list.take(widget.limit).toList();
+    _pool = List<Question>.from(widget.questions)..shuffle();
+    _loadSet();
+  }
+
+  /// Take the next [widget.limit] questions from the pool.
+  void _loadSet() {
+    final end = (_cursor + widget.limit <= _pool.length)
+        ? _cursor + widget.limit
+        : _pool.length;
+    _questions = _pool.sublist(_cursor, end);
+    _cursor = end;
+    _index = 0;
+    _score = 0;
+    _selected = null;
+    _finished = false;
+    _recorded = false;
+  }
+
+  bool get _hasMore => _cursor < _pool.length;
+
+  void _nextSet() {
+    if (!_hasMore) return;
+    setState(_loadSet);
   }
 
   void _choose(int i) {
@@ -73,13 +96,9 @@ class _QuizScreenState extends State<QuizScreen> {
 
   void _restart() {
     setState(() {
-      final list = List<Question>.from(widget.questions)..shuffle();
-      _questions = list.take(widget.limit).toList();
-      _index = 0;
-      _score = 0;
-      _selected = null;
-      _finished = false;
-      _recorded = false;
+      _pool = List<Question>.from(widget.questions)..shuffle();
+      _cursor = 0;
+      _loadSet();
     });
   }
 
@@ -142,12 +161,19 @@ class _QuizScreenState extends State<QuizScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: _restart,
-                  icon: const Icon(Icons.replay),
-                  label: const Text('Play again'),
-                ),
-                if (_hasNextClass) ...[
+                if (_hasMore)
+                  FilledButton.icon(
+                    onPressed: _nextSet,
+                    icon: const Icon(Icons.skip_next),
+                    label: Text('Next ${widget.limit} questions'),
+                  )
+                else
+                  FilledButton.icon(
+                    onPressed: _restart,
+                    icon: const Icon(Icons.replay),
+                    label: const Text('Play again'),
+                  ),
+                if (!_hasMore && _hasNextClass) ...[
                   const SizedBox(height: 8),
                   FilledButton.icon(
                     onPressed: _nextClass,

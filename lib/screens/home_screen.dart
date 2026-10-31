@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/progress_service.dart';
 import 'login_screen.dart';
 import 'quiz_screen.dart';
+import 'test_series_screen.dart';
 import 'rewards_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -69,6 +70,7 @@ class HomeScreen extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
+                _testSeriesCard(context),
                 for (var i = 0; i < state.subjects.length; i++)
                   _subjectCard(
                     context,
@@ -148,6 +150,28 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _testSeriesCard(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: Colors.deepOrange.withAlpha(38),
+          child: const Icon(Icons.timer, color: Colors.deepOrange),
+        ),
+        title: const Text(
+          'Test Series',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        subtitle: const Text('20 questions \u2022 all subjects'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const TestSeriesScreen()),
         ),
       ),
     );

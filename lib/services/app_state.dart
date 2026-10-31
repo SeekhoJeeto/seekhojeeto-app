@@ -17,6 +17,10 @@ class AppState extends ChangeNotifier {
   static const String dataUrl =
       'https://raw.githubusercontent.com/SeekhoJeeto/seekhojeeto.github.io/main/questions.json';
 
+  /// English and Hindi live in their own file so questions.json stays small.
+  static const String langDataUrl =
+      'https://raw.githubusercontent.com/SeekhoJeeto/seekhojeeto.github.io/main/languages.json';
+
   static const Map<String, String> _titles = {
     'science': 'Science',
     'maths': 'Maths',
@@ -76,6 +80,19 @@ class AppState extends ChangeNotifier {
 
     try {
       final decoded = json.decode(body) as Map<String, dynamic>;
+      // English and Hindi are kept in a second file; merge it in when it loads.
+      try {
+        final lr = await http
+            .get(Uri.parse(langDataUrl))
+            .timeout(const Duration(seconds: 15));
+        if (lr.statusCode == 200 && lr.bodyBytes.isNotEmpty) {
+          final ltext = utf8.decode(lr.bodyBytes, allowMalformed: true);
+          final lm = json.decode(ltext);
+          if (lm is Map) {
+            lm.forEach((k, v) => decoded['$k'] = v);
+          }
+        }
+      } catch (_) {}
       _build(decoded);
     } catch (_) {
       error = 'Questions could not be loaded.';
@@ -221,6 +238,30 @@ class AppState extends ChangeNotifier {
     if (list is List) {
       for (final e in list) {
         if (e is Map<String, dynamic>) out.add(Question.fromJson(e));
+      }
+    }
+    return out;
+  }
+
+  int _classOf(String key) {
+    final i = key.lastIndexOf('_');
+    return int.tryParse(i >= 0 ? key.substring(i + 1) : key) ?? 0;
+  }
+
+  /// Every question of one class across all subjects - used by Test Series.
+  List<Question> questionsForClass(int cls) {
+    final out = <Question>[];
+    for (final s in subjects) {
+      if (s.parts.isNotEmpty) {
+        for (final p in s.parts) {
+          for (final g in p.groups) {
+            if (_classOf(g.key) == cls) out.addAll(g.questions);
+          }
+        }
+      } else {
+        for (final g in s.groups) {
+          if (_classOf(g.key) == cls) out.addAll(g.questions);
+        }
       }
     }
     return out;
