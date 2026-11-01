@@ -17,13 +17,41 @@ class AppState extends ChangeNotifier {
   static const String dataUrl =
       'https://raw.githubusercontent.com/SeekhoJeeto/seekhojeeto.github.io/main/questions.json';
 
-  /// Hindi lives in its own file so questions.json stays small.
-  static const String langDataUrl =
-      'https://raw.githubusercontent.com/SeekhoJeeto/seekhojeeto.github.io/main/languages.json';
+  static const String baseUrl =
+      'https://raw.githubusercontent.com/SeekhoJeeto/seekhojeeto.github.io/main/';
 
-  /// English lives in its own file too - it has grown past what one file can hold.
-  static const String englishDataUrl =
-      'https://raw.githubusercontent.com/SeekhoJeeto/seekhojeeto.github.io/main/english.json';
+  /// The bank is split across several files so no single file hits the size
+  /// limit of the tools that write it. manifest.json lists them, so a file can
+  /// be added or split later without another app build.
+  static const String manifestUrl = baseUrl + 'manifest.json';
+
+  static const List<String> fallbackFiles = [
+    'science.json',
+    'maths.json',
+    'sst.json',
+    'values.json',
+    'english.json',
+    'languages.json',
+    'meta.json',
+  ];
+
+  Future<List<String>> _dataFiles() async {
+    try {
+      final r = await http
+          .get(Uri.parse(manifestUrl))
+          .timeout(const Duration(seconds: 15));
+      if (r.statusCode == 200 && r.bodyBytes.isNotEmpty) {
+        final m = json.decode(utf8.decode(r.bodyBytes, allowMalformed: true));
+        if (m is Map && m['files'] is List) {
+          final files = (m['files'] as List).map((e) => '$e').toList();
+          if (files.isNotEmpty) return files;
+        }
+      }
+    } catch (_) {
+      // fall through to the built-in list
+    }
+    return fallbackFiles;
+  }
 
   static const Map<String, String> _titles = {
     'science': 'Science',
@@ -84,32 +112,26 @@ class AppState extends ChangeNotifier {
 
     try {
       final decoded = json.decode(body) as Map<String, dynamic>;
-      // English and Hindi are kept in a second file; merge it in when it loads.
-      try {
-        final lr = await http
-            .get(Uri.parse(langDataUrl))
-            .timeout(const Duration(seconds: 15));
-        if (lr.statusCode == 200 && lr.bodyBytes.isNotEmpty) {
-          final ltext = utf8.decode(lr.bodyBytes, allowMalformed: true);
-          final lm = json.decode(ltext);
-          if (lm is Map) {
-            lm.forEach((k, v) => decoded['$k'] = v);
+      // Pull in every file listed in manifest.json (science, maths, sst,
+      // values, english, hindi, meta). A missing file is skipped.
+      final files = await _dataFiles();
+      for (final name in files) {
+        try {
+          final r = await http
+              .get(Uri.parse(baseUrl + name))
+              .timeout(const Duration(seconds: 15));
+          if (r.statusCode != 200 || r.bodyBytes.isEmpty) continue;
+          final m = json.decode(utf8.decode(r.bodyBytes, allowMalformed: true));
+          if (m is! Map) continue;
+          if (name == 'meta.json') {
+            decoded['meta'] = m;
+          } else {
+            m.forEach((k, v) => decoded['$k'] = v);
           }
+        } catch (_) {
+          // one file failing must not stop the rest
         }
-      } catch (_) {}
-      // English sits in a third file.
-      try {
-        final er = await http
-            .get(Uri.parse(englishDataUrl))
-            .timeout(const Duration(seconds: 15));
-        if (er.statusCode == 200 && er.bodyBytes.isNotEmpty) {
-          final etext = utf8.decode(er.bodyBytes, allowMalformed: true);
-          final em = json.decode(etext);
-          if (em is Map) {
-            em.forEach((k, v) => decoded['$k'] = v);
-          }
-        }
-      } catch (_) {}
+      }
       _build(decoded);
     } catch (_) {
       error = 'Questions could not be loaded.';
