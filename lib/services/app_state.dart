@@ -17,9 +17,13 @@ class AppState extends ChangeNotifier {
   static const String dataUrl =
       'https://raw.githubusercontent.com/SeekhoJeeto/seekhojeeto.github.io/main/questions.json';
 
-  /// English and Hindi live in their own file so questions.json stays small.
+  /// Hindi lives in its own file so questions.json stays small.
   static const String langDataUrl =
       'https://raw.githubusercontent.com/SeekhoJeeto/seekhojeeto.github.io/main/languages.json';
+
+  /// English lives in its own file too - it has grown past what one file can hold.
+  static const String englishDataUrl =
+      'https://raw.githubusercontent.com/SeekhoJeeto/seekhojeeto.github.io/main/english.json';
 
   static const Map<String, String> _titles = {
     'science': 'Science',
@@ -90,6 +94,19 @@ class AppState extends ChangeNotifier {
           final lm = json.decode(ltext);
           if (lm is Map) {
             lm.forEach((k, v) => decoded['$k'] = v);
+          }
+        }
+      } catch (_) {}
+      // English sits in a third file.
+      try {
+        final er = await http
+            .get(Uri.parse(englishDataUrl))
+            .timeout(const Duration(seconds: 15));
+        if (er.statusCode == 200 && er.bodyBytes.isNotEmpty) {
+          final etext = utf8.decode(er.bodyBytes, allowMalformed: true);
+          final em = json.decode(etext);
+          if (em is Map) {
+            em.forEach((k, v) => decoded['$k'] = v);
           }
         }
       } catch (_) {}
